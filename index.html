@@ -209,8 +209,7 @@
                     }
                 } catch (error) {
                     console.error('Error processing file:', file.name, error);
-                    // Provide a more detailed error message for debugging
-                    let detailedError = `An error occurred while processing ${file.name}.`;
+                     let detailedError = `An error occurred while processing ${file.name}.`;
                     if (error.message && error.message.includes('status:')) {
                         detailedError += ` Details: ${error.message}`;
                     } else {
@@ -293,8 +292,9 @@
                     },
                 },
             };
-
-            const apiKey = "AIzaSyBPKKcQJDmoRLpPJGbTesw83MqnXy3lvEM"; // Your API key goes here if running locally
+            
+            // This is the CORRECT API key for the project
+            const apiKey = "AIzaSyAzTbdvEwqu0Lb7d38zngeNUMOpKoJLTHc";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             
             let response;
@@ -383,5 +383,4 @@
     </script>
 </body>
 </html>
-
 
