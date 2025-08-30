@@ -209,7 +209,14 @@
                     }
                 } catch (error) {
                     console.error('Error processing file:', file.name, error);
-                    errorMessage.textContent = `An error occurred while processing ${file.name}. Please try again.`;
+                    // Provide a more detailed error message for debugging
+                    let detailedError = `An error occurred while processing ${file.name}.`;
+                    if (error.message && error.message.includes('status:')) {
+                        detailedError += ` Details: ${error.message}`;
+                    } else {
+                        detailedError += ' Please check the browser console for more details.';
+                    }
+                    errorMessage.textContent = detailedError + ' Please double-check your API key and its website restrictions.';
                     errorMessage.classList.remove('hidden');
                 }
             }
@@ -287,7 +294,7 @@
                 },
             };
 
-            const apiKey = ""; // Your API key goes here if running locally
+            const apiKey = "AIzaSyBPKKcQJDmoRLpPJGbTesw83MqnXy3lvEM"; // Your API key goes here if running locally
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             
             let response;
