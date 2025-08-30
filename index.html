@@ -27,10 +27,13 @@
 </head>
 <body class="bg-gray-100 text-gray-800">
 
-    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+    <div class="container mx-auto p-4 md:p-8 max-w-full xl:max-w-7xl">
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Visiting Card Data Extractor</h1>
-            <p class="text-md text-gray-600 mt-2">Upload JPEG images of visiting cards to extract contact information into Excel.</p>
+            <p class="text-md text-gray-600 mt-2">Upload images of visiting cards to extract contact information.</p>
+            <p class="text-sm text-blue-700 bg-blue-100 p-3 rounded-lg mt-4 inline-block">
+                <strong>Pro Tip:</strong> For the most accurate results, please upload photos with 8-10 cards each, and process up to 10 photos at a time.
+            </p>
         </header>
 
         <main>
@@ -56,7 +59,7 @@
                 <button id="extract-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors duration-300 shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed">
                     Extract Data
                 </button>
-                <button id="export-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors duration-300 shadow-sm ml-4 hidden disabled:bg-gray-400">
+                <button id="export-excel-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors duration-300 shadow-sm ml-4 hidden disabled:bg-gray-400">
                     Export to Excel
                 </button>
             </div>
@@ -103,14 +106,14 @@
         const previewsContainer = document.getElementById('previews-container');
         const actionButtons = document.getElementById('action-buttons');
         const extractBtn = document.getElementById('extract-btn');
-        const exportBtn = document.getElementById('export-btn');
+        const exportExcelBtn = document.getElementById('export-excel-btn');
         const loadingContainer = document.getElementById('loading-container');
         const resultsContainer = document.getElementById('results-container');
         const tableBody = document.getElementById('table-body');
         const errorMessage = document.getElementById('error-message');
 
         let uploadedFiles = [];
-        let extractedData = [];
+        let extractedData = []; // Stores extracted card detail objects
 
         // --- Drag and Drop functionality ---
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -191,16 +194,17 @@
             tableBody.innerHTML = '';
             extractedData = [];
             extractBtn.disabled = true;
-            exportBtn.classList.add('hidden');
+            exportExcelBtn.classList.add('hidden');
 
             for (const file of uploadedFiles) {
                 try {
                     const base64Image = await fileToBase64(file);
-                    const cards = await extractDataFromImage(base64Image); // Expects an array now
+                    const cards = await extractDataFromImage(base64Image); 
+                    
                     if (cards && cards.length > 0) {
                         cards.forEach(cardData => {
-                            extractedData.push(cardData);
-                            renderTableRow(cardData);
+                            extractedData.push(cardData.details);
+                            renderTableRow(cardData.details);
                         });
                     }
                 } catch (error) {
@@ -213,7 +217,7 @@
             loadingContainer.classList.add('hidden');
             if (extractedData.length > 0) {
                 resultsContainer.classList.remove('hidden');
-                exportBtn.classList.remove('hidden');
+                exportExcelBtn.classList.remove('hidden');
             }
             extractBtn.disabled = false;
         });
@@ -230,22 +234,14 @@
         async function extractDataFromImage(base64ImageData) {
             const prompt = `
                 Analyze the following image which may contain one or more business cards.
-                Identify EVERY distinct business card and extract the following details for EACH one.
-                Return the result as an array of JSON objects, with one object per card found.
+                Identify EVERY distinct business card. For EACH card, provide its bounding box coordinates (x, y, width, height) as percentages of the total image dimensions, and extract its details.
+                Return the result as an array of JSON objects, with one object per card.
 
-                For each card, extract:
-                - Company Name
-                - Contact Name
-                - Designation (Job Title)
-                - Phone Number (Office or main line)
-                - Mobile Number
-                - Fax Number
-                - Email Address
-                - Website
-                - Address
+                Each object should contain:
+                1. A 'boundingBox' object with x, y, width, height as numbers between 0 and 1.
+                2. A 'details' object containing the extracted text information.
 
-                If any detail is not found on a card, return an empty string for that field.
-                If no business cards are found in the image, return an empty array.
+                If any text detail is not found, return an empty string for that field.
             `;
 
             const payload = {
@@ -262,22 +258,36 @@
                         items: {
                            type: "OBJECT",
                            properties: {
-                                companyName: { type: "STRING" },
-                                contactName: { type: "STRING" },
-                                designation: { type: "STRING" },
-                                phoneNumber: { type: "STRING" },
-                                mobileNumber: { type: "STRING" },
-                                faxNumber: { type: "STRING" },
-                                email: { type: "STRING" },
-                                website: { type: "STRING" },
-                                address: { type: "STRING" },
+                                boundingBox: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        x: { type: "NUMBER" },
+                                        y: { type: "NUMBER" },
+                                        width: { type: "NUMBER" },
+                                        height: { type: "NUMBER" }
+                                    }
+                                },
+                                details: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        companyName: { type: "STRING" },
+                                        contactName: { type: "STRING" },
+                                        designation: { type: "STRING" },
+                                        phoneNumber: { type: "STRING" },
+                                        mobileNumber: { type: "STRING" },
+                                        faxNumber: { type: "STRING" },
+                                        email: { type: "STRING" },
+                                        website: { type: "STRING" },
+                                        address: { type: "STRING" },
+                                    }
+                                }
                             },
                         }
                     },
                 },
             };
 
-            const apiKey = "AIzaSyAzTbdvEwqu0Lb7d38zngeNUMOpKoJLTHc"; // API key will be provided by the environment
+            const apiKey = ""; // Your API key goes here if running locally
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             
             let response;
@@ -326,36 +336,35 @@
              return null;
         }
 
-        function renderTableRow(data) {
+        function renderTableRow(details) {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${data.companyName || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.contactName || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.designation || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.phoneNumber || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.mobileNumber || ''}</td>
-                <td class="px-6 py-4 whitespace-n-wrap text-sm text-gray-500">${data.faxNumber || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.email || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.website || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.address || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${details.companyName || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${details.contactName || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${details.designation || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${details.phoneNumber || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${details.mobileNumber || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${details.faxNumber || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${details.email || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${details.website || ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${details.address || ''}</td>
             `;
             tableBody.appendChild(row);
         }
 
         // --- Excel Export ---
-        exportBtn.addEventListener('click', () => {
-            const worksheet = XLSX.utils.json_to_sheet(extractedData, {
+        exportExcelBtn.addEventListener('click', () => {
+            const dataForExcel = extractedData;
+            const worksheet = XLSX.utils.json_to_sheet(dataForExcel, {
                 header: ["companyName", "contactName", "designation", "phoneNumber", "mobileNumber", "faxNumber", "email", "website", "address"]
             });
             
-            // Set custom headers
             XLSX.utils.sheet_add_aoa(worksheet, [["Company", "Name", "Designation", "Phone", "Mobile", "Fax", "Email", "Website", "Address"]], { origin: "A1" });
 
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Visiting Cards");
             
-            // Auto-size columns
-            const max_width = extractedData.reduce((w, r) => Math.max(w, r.address?.length || 0), 10);
+            const max_width = dataForExcel.reduce((w, r) => Math.max(w, r.address?.length || 0), 10);
             worksheet["!cols"] = [ 
                 { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, 
                 { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 25 }, { wch: max_width } 
@@ -367,3 +376,4 @@
     </script>
 </body>
 </html>
+
