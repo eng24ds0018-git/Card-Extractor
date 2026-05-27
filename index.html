@@ -32,7 +32,7 @@
     <div class="container mx-auto p-4 md:p-8 max-w-full xl:max-w-7xl flex-grow">
         <header class="text-center mb-8 max-w-2xl mx-auto">
             <h1 class="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">Visiting Card Data Extractor</h1>
-            <p class="text-md text-slate-600 mt-2">Upload images of business cards to instantly extract contact information.</p>
+            <p class="text-md text-slate-600 mt-2">Upload images of business cards to instantly extract contact information using Gemini AI.</p>
             <div class="text-sm text-blue-700 bg-blue-50 border border-blue-200 p-3 rounded-lg mt-4 shadow-sm inline-block">
                 <strong>Pro Tip:</strong> For the most accurate results, please upload photos with 8-10 cards each, and process up to 10 photos at a time.
             </div>
@@ -73,7 +73,7 @@
             </div>
             
             <!-- Detailed Diagnostic Error Message -->
-            <div id="error-message" class="text-center my-4 hidden"></div>
+            <div id="error-message" class="text-center my-4 hidden font-medium text-red-600"></div>
 
             <!-- Results Table -->
             <div id="results-container" class="mt-8 bg-white p-6 rounded-xl shadow-sm border border-slate-200 hidden">
@@ -233,7 +233,7 @@
                             </div>
                         </div>`;
                     errorMessage.classList.remove('hidden');
-                    break; // Stop running further image files to let the user address authorization rules first
+                    break; 
                 }
             }
 
@@ -356,7 +356,7 @@
                     }
                 } catch (error) {
                     if (error.message.includes("HTTP")) {
-                        throw error; // Immediately pass detailed API restriction feedback up to the UI
+                        throw error; 
                     }
                     attempts++;
                     if (attempts >= maxAttempts) {
