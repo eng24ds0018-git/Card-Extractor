@@ -245,7 +245,7 @@ async function processCardImageWithGemini(base64ImageData) {
         If any text detail is not found, return an empty string for that field.
     `;
 
-    // THE SOLVED PAYLOAD: Removed the unsupported rigid schema block that caused the 400 error
+    // THE SOLVED PAYLOAD: Formatted with clean lowercase token types for the stable v1 production engine
     const payload = {
         contents: [{
             parts: [
@@ -254,12 +254,45 @@ async function processCardImageWithGemini(base64ImageData) {
             ]
         }],
         generationConfig: {
-            responseMimeType: "application/json"
-        }
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "array",
+                items: {
+                   type: "object",
+                   properties: {
+                        boundingBox: {
+                            type: "object",
+                            properties: {
+                                x: { type: "number" },
+                                y: { type: "number" },
+                                width: { type: "number" },
+                                height: { type: "number" }
+                            }
+                        },
+                        details: {
+                            type: "object",
+                            properties: {
+                                companyName: { type: "string" },
+                                contactName: { type: "string" },
+                                designation: { type: "string" },
+                                phoneNumber: { type: "string" },
+                                mobileNumber: { type: "string" },
+                                faxNumber: { type: "string" },
+                                email: { type: "string" },
+                                website: { type: "string" },
+                                address: { type: "string" },
+                            }
+                        }
+                    },
+                }
+            },
+        },
     };
     
     const apiKey = "AIzaSyAzTbdvEwqu0Lb7d38zngeNUMOpKoJLTHc";
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    // FIXED: Switched endpoint version string from v1beta to v1
+    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     let response;
     let attempts = 0;
@@ -292,10 +325,7 @@ async function processCardImageWithGemini(base64ImageData) {
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2; 
             } else {
-                // Read exact rejection logs from the Google Cloud gateway
-                const errData = await response.json().catch(() => ({}));
-                const detailMsg = errData.error?.message || "Verification Failed";
-                throw new Error(`Google Cloud Rejected (HTTP ${response.status}): ${detailMsg}`);
+                throw new Error(`API request failed with status: ${response.status}`);
             }
         } catch (error) {
             attempts++;
