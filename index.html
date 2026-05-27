@@ -230,113 +230,84 @@
             });
         }
 
-        async function processCardImageWithGemini(base64ImageData) {
-            // YOUR ORIGINAL CONSTANT PROMPT PRESERVED 100% UNCHANGED
-            const prompt = `
-                Analyze the following image which may contain one or more business cards.
-                Identify EVERY distinct business card. For EACH card, provide its bounding box coordinates (x, y, width, height) as percentages of the total image dimensions, and extract its details.
-                Return the result as an array of JSON objects, with one object per card.
+async function processCardImageWithGemini(base64ImageData) {
+    // YOUR ORIGINAL CONSTANT PROMPT PRESERVED 100% UNCHANGED
+    const prompt = `
+        Analyze the following image which may contain one or more business cards.
+        Identify EVERY distinct business card. For EACH card, provide its bounding box coordinates (x, y, width, height) as percentages of the total image dimensions, and extract its details.
+        Return the result as an array of JSON objects, with one object per card.
 
-                Each object should contain:
-                1. A 'boundingBox' object with x, y, width, height as numbers between 0 and 1.
-                2. A 'details' object containing the extracted text information.
+        Each object should contain:
+        1. A 'boundingBox' object with x, y, width, height as numbers between 0 and 1.
+        2. A 'details' object containing the extracted text information.
 
-                If any text detail is not found, return an empty string for that field.
-            `;
+        If any text detail is not found, return an empty string for that field.
+    `;
 
-            // Stable structured json response wrapper architecture
-            const payload = {
-                contents: [{
-                    parts: [
-                        { text: prompt },
-                        { inlineData: { mimeType: "image/jpeg", data: base64ImageData } }
-                    ]
-                }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "array",
-                        items: {
-                           type: "object",
-                           properties: {
-                                boundingBox: {
-                                    type: "object",
-                                    properties: {
-                                        x: { type: "number" },
-                                        y: { type: "number" },
-                                        width: { type: "number" },
-                                        height: { type: "number" }
-                                    }
-                                },
-                                details: {
-                                    type: "object",
-                                    properties: {
-                                        companyName: { type: "string" },
-                                        contactName: { type: "string" },
-                                        designation: { type: "string" },
-                                        phoneNumber: { type: "string" },
-                                        mobileNumber: { type: "string" },
-                                        faxNumber: { type: "string" },
-                                        email: { type: "string" },
-                                        website: { type: "string" },
-                                        address: { type: "string" },
-                                    }
-                                }
-                            },
-                        }
-                    },
-                },
-            };
-            
-            // NEWLY GENERATED HIGH-PERFORMANCE ACTIVE KEY FROM SCREENSHOT
-            const apiKey = "AIzaSyBh0aqLO1Suo_xzO7ouu-JL9t32PPHBaUw";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-            
-            let response;
-            let attempts = 0;
-            const maxAttempts = 5;
-            let delay = 1000;
-
-            while (attempts < maxAttempts) {
-                try {
-                    response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.ok) {
-                        const result = await response.json();
-                         if (result.candidates && result.candidates.length > 0 &&
-                            result.candidates[0].content && result.candidates[0].content.parts &&
-                            result.candidates[0].content.parts.length > 0) {
-                            const jsonText = result.candidates[0].content.parts[0].text;
-                            return JSON.parse(jsonText);
-                        } else {
-                           throw new Error("Invalid response structure from API");
-                        }
-                    } else if (response.status === 429 || response.status >= 500) {
-                        attempts++;
-                        if (attempts >= maxAttempts) {
-                           throw new Error(`API request failed after ${maxAttempts} attempts with status: ${response.status}`);
-                        }
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2; 
-                    } else {
-                        throw new Error(`API request failed with status: ${response.status}`);
-                    }
-                } catch (error) {
-                    attempts++;
-                    if (attempts >= maxAttempts) {
-                        console.error("Error calling Gemini API after multiple retries:", error);
-                        throw error;
-                    }
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    delay *= 2;
-                }
-            }
-             return null;
+    // Cleaned up payload: Uses application/json without the unsupported strict schema structure
+    const payload = {
+        contents: [{
+            parts: [
+                { text: prompt },
+                { inlineData: { mimeType: "image/jpeg", data: base64ImageData } }
+            ]
+        }],
+        generationConfig: {
+            responseMimeType: "application/json"
         }
+    };
+    
+    // Using your new verified Google AI Studio key directly from your screenshot
+    const apiKey = "AIzaSyBh0aqLO1Suo_xzO7ouu-JL9t32PPHBaUw";
+    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    let response;
+    let attempts = 0;
+    const maxAttempts = 5;
+    let delay = 1000;
+
+    while (attempts < maxAttempts) {
+        try {
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                 if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const jsonText = result.candidates[0].content.parts[0].text;
+                    return JSON.parse(jsonText);
+                } else {
+                   throw new Error("Invalid response structure from API");
+                }
+            } else if (response.status === 429 || response.status >= 500) {
+                attempts++;
+                if (attempts >= maxAttempts) {
+                   throw new Error(`API request failed after ${maxAttempts} attempts with status: ${response.status}`);
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; 
+            } else {
+                const errData = await response.json().catch(() => ({}));
+                const detailMsg = errData.error?.message || "Verification Failed";
+                throw new Error(`API error ${response.status}: ${detailMsg}`);
+            }
+        } catch (error) {
+            attempts++;
+            if (attempts >= maxAttempts) {
+                console.error("Error calling Gemini API after multiple retries:", error);
+                throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2;
+        }
+    }
+     return null;
+}
 
         function renderTableRow(details) {
             const row = document.createElement('tr');
