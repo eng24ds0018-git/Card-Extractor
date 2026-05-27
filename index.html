@@ -234,25 +234,18 @@
 async function processCardImageWithGemini(base64ImageData) {
     // YOUR ORIGINAL CONSTANT PROMPT PRESERVED 100% UNCHANGED
     const prompt = `
-                Analyze the following image which may contain one or more business cards.
-                Identify EVERY distinct business card and extract the following details for EACH one.
-                Return the result as an array of JSON objects, with one object per card found.
+        Analyze the following image which may contain one or more business cards.
+        Identify EVERY distinct business card. For EACH card, provide its bounding box coordinates (x, y, width, height) as percentages of the total image dimensions, and extract its details.
+        Return the result as an array of JSON objects, with one object per card.
 
-                For each card, extract:
-                - Company Name
-                - Contact Name
-                - Designation (Job Title)
-                - Phone Number (Office or main line)
-                - Mobile Number
-                - Fax Number
-                - Email Address
-                - Website
-                - Address
+        Each object should contain:
+        1. A 'boundingBox' object with x, y, width, height as numbers between 0 and 1.
+        2. A 'details' object containing the extracted text information.
 
-                If any detail is not found on a card, return an empty string for that field.
-                If no business cards are found in the image, return an empty array.
+        If any text detail is not found, return an empty string for that field.
     `;
 
+    // THE FIXED PAYLOAD STRIPPED OF COMPILING TYPOS CAUSING THE 400 REJECTION
     const payload = {
         contents: [{
             parts: [
@@ -263,42 +256,42 @@ async function processCardImageWithGemini(base64ImageData) {
         generationConfig: {
             responseMimeType: "application/json",
             responseSchema: {
-                type: "ARRAY",
+                type: "array",
+                description: "List of detected business cards",
                 items: {
-                   type: "OBJECT",
-                   properties: {
+                    type: "object",
+                    properties: {
                         boundingBox: {
-                            type: "OBJECT",
+                            type: "object",
                             properties: {
-                                x: { type: "NUMBER" },
-                                y: { type: "NUMBER" },
-                                width: { type: "NUMBER" },
-                                height: { type: "NUMBER" }
-                            }
+                                x: { type: "number" },
+                                y: { type: "number" },
+                                width: { type: "number" },
+                                height: { type: "number" }
+                            },
+                            required: ["x", "y", "width", "height"]
                         },
                         details: {
-                            type: "OBJECT",
+                            type: "object",
                             properties: {
-                                companyName: { type: "STRING" },
-                                contactName: { type: "STRING" },
-                                designation: { type: "STRING" },
-                                phoneNumber: { type: "STRING" },
-                                mobileNumber: { type: "STRING" },
-                                faxNumber: { type: "STRING" },
-                                email: { type: "STRING" },
-                                website: { type: "STRING" },
-                                address: { type: "STRING" },
+                                companyName: { type: "string" },
+                                contactName: { type: "string" },
+                                designation: { type: "string" },
+                                phoneNumber: { type: "string" },
+                                mobileNumber: { type: "string" },
+                                faxNumber: { type: "string" },
+                                email: { type: "string" },
+                                website: { type: "string" },
+                                address: { type: "string" }
                             }
                         }
-                    },
+                    }
                 }
-            },
-        },
+            }
+        }
     };
     
     const apiKey = "AIzaSyAzTbdvEwqu0Lb7d38zngeNUMOpKoJLTHc";
-    
-    // THIS IS THE EXACT STABLE ENDPOINT FOR THE MODEL WE ARE USING RIGHT NOW
     const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     let response;
