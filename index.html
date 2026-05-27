@@ -234,14 +234,22 @@
             // YOUR ORIGINAL CONSTANT PROMPT PRESERVED 100% UNCHANGED
             const prompt = `
                 Analyze the following image which may contain one or more business cards.
-                Identify EVERY distinct business card. For EACH card, provide its bounding box coordinates (x, y, width, height) as percentages of the total image dimensions, and extract its details.
-                Return the result as an array of JSON objects, with one object per card.
+                Identify EVERY distinct business card and extract the following details for EACH one.
+                Return the result as an array of JSON objects, with one object per card found.
 
-                Each object should contain:
-                1. A 'boundingBox' object with x, y, width, height as numbers between 0 and 1.
-                2. A 'details' object containing the extracted text information.
+                For each card, extract:
+                - Company Name
+                - Contact Name
+                - Designation (Job Title)
+                - Phone Number (Office or main line)
+                - Mobile Number
+                - Fax Number
+                - Email Address
+                - Website
+                - Address
 
-                If any text detail is not found, return an empty string for that field.
+                If any detail is not found on a card, return an empty string for that field.
+                If no business cards are found in the image, return an empty array.
             `;
 
             const payload = {
