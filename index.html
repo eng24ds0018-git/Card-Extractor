@@ -245,7 +245,7 @@ async function processCardImageWithGemini(base64ImageData) {
         If any text detail is not found, return an empty string for that field.
     `;
 
-    // STRUCTURALLY CORRECT PAYLOAD COMPLIANT WITH THE STABLE v1 ENDPOINT
+    // THE SOLVED PAYLOAD: Removed the unsupported rigid schema block that caused the 400 error
     const payload = {
         contents: [{
             parts: [
@@ -254,50 +254,12 @@ async function processCardImageWithGemini(base64ImageData) {
             ]
         }],
         generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: "object",
-                properties: {
-                    schema: {
-                        type: "array",
-                        description: "List of detected business cards with details",
-                        items: {
-                            type: "object",
-                            properties: {
-                                boundingBox: {
-                                    type: "object",
-                                    properties: {
-                                        x: { type: "number" },
-                                        y: { type: "number" },
-                                        width: { type: "number" },
-                                        height: { type: "number" }
-                                    },
-                                    required: ["x", "y", "width", "height"]
-                                },
-                                details: {
-                                    type: "object",
-                                    properties: {
-                                        companyName: { type: "string" },
-                                        contactName: { type: "string" },
-                                        designation: { type: "string" },
-                                        phoneNumber: { type: "string" },
-                                        mobileNumber: { type: "string" },
-                                        faxNumber: { type: "string" },
-                                        email: { type: "string" },
-                                        website: { type: "string" },
-                                        address: { type: "string" }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            responseMimeType: "application/json"
         }
     };
     
     const apiKey = "AIzaSyAzTbdvEwqu0Lb7d38zngeNUMOpKoJLTHc";
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     let response;
     let attempts = 0;
@@ -314,18 +276,11 @@ async function processCardImageWithGemini(base64ImageData) {
 
             if (response.ok) {
                 const result = await response.json();
-                if (result.candidates && result.candidates.length > 0 &&
+                 if (result.candidates && result.candidates.length > 0 &&
                     result.candidates[0].content && result.candidates[0].content.parts &&
                     result.candidates[0].content.parts.length > 0) {
-                    
                     const jsonText = result.candidates[0].content.parts[0].text;
-                    const parsedResult = JSON.parse(jsonText);
-                    
-                    // Handle reading data out of the standard schema nesting wrapper
-                    if (parsedResult.schema) {
-                        return parsedResult.schema;
-                    }
-                    return parsedResult;
+                    return JSON.parse(jsonText);
                 } else {
                    throw new Error("Invalid response structure from API");
                 }
@@ -337,7 +292,10 @@ async function processCardImageWithGemini(base64ImageData) {
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2; 
             } else {
-                throw new Error(`API request failed with status: ${response.status}`);
+                // Read exact rejection logs from the Google Cloud gateway
+                const errData = await response.json().catch(() => ({}));
+                const detailMsg = errData.error?.message || "Verification Failed";
+                throw new Error(`Google Cloud Rejected (HTTP ${response.status}): ${detailMsg}`);
             }
         } catch (error) {
             attempts++;
