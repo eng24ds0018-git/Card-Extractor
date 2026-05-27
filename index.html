@@ -245,7 +245,7 @@ async function processCardImageWithGemini(base64ImageData) {
         If any text detail is not found, return an empty string for that field.
     `;
 
-    // THE SOLVED PAYLOAD: Formatted with clean lowercase token types for the stable v1 production engine
+    // Lowercase schema data types to adhere strictly to the stable v1 endpoint guidelines
     const payload = {
         contents: [{
             parts: [
@@ -290,8 +290,6 @@ async function processCardImageWithGemini(base64ImageData) {
     };
     
     const apiKey = "AIzaSyAzTbdvEwqu0Lb7d38zngeNUMOpKoJLTHc";
-    
-    // FIXED: Switched endpoint version string from v1beta to v1
     const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     let response;
