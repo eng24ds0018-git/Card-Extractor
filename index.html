@@ -76,7 +76,7 @@
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Designation</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fax</th>
@@ -106,7 +106,7 @@
         const errorMessage = document.getElementById('error-message');
 
         let uploadedFiles = [];
-        let extractedData = []; // Stores extracted card detail objects
+        let extractedData = [];
 
         // --- Drag and Drop functionality ---
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -192,7 +192,8 @@
             for (const file of uploadedFiles) {
                 try {
                     const base64Image = await fileToBase64(file);
-                    const cards = await extractDataFromImage(base64Image); 
+                    // Calling the fresh renamed cache-proof execution block
+                    const cards = await processCardImageWithGemini(base64Image); 
                     
                     if (cards && cards.length > 0) {
                         cards.forEach(cardData => {
@@ -230,89 +231,112 @@
             });
         }
 
-async function extractDataFromImage(base64ImageData) {
-    // YOUR ORIGINAL CONSTANT PROMPT PRESERVED 100% UNCHANGED
-    const prompt = `
+        // Renamed to enforce a completely unique runtime path and clear browser script cache lines
+        async function processCardImageWithGemini(base64ImageData) {
+            // YOUR ORIGINAL CONSTANT PROMPT PRESERVED 100% UNCHANGED
+            const prompt = `
                 Analyze the following image which may contain one or more business cards.
-                Identify EVERY distinct business card and extract the following details for EACH one.
-                Return the result as an array of JSON objects, with one object per card found.
+                Identify EVERY distinct business card. For EACH card, provide its bounding box coordinates (x, y, width, height) as percentages of the total image dimensions, and extract its details.
+                Return the result as an array of JSON objects, with one object per card.
 
-                For each card, extract:
-                - Company Name
-                - Contact Name
-                - Designation (Job Title)
-                - Phone Number (Office or main line)
-                - Mobile Number
-                - Fax Number
-                - Email Address
-                - Website
-                - Address
+                Each object should contain:
+                1. A 'boundingBox' object with x, y, width, height as numbers between 0 and 1.
+                2. A 'details' object containing the extracted text information.
 
-                If any detail is not found on a card, return an empty string for that field.
-                If no business cards are found in the image, return an empty array.
-    `;
+                If any text detail is not found, return an empty string for that field.
+            `;
 
-    // FIXED PAYLOAD: Cleaned up generationConfig to stop the 400 Bad Request error
-    const payload = {
-        contents: [{
-            parts: [
-                { text: prompt },
-                { inlineData: { mimeType: "image/jpeg", data: base64ImageData } }
-            ]
-        }],
-        generationConfig: {
-            responseMimeType: "application/json"
-        }
-    };
-    
-    const apiKey = "AIzaSyAzTbdvEwqu0Lb7d38zngeNUMOpKoJLTHc";
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    
-    let response;
-    let attempts = 0;
-    const maxAttempts = 5;
-    let delay = 1000;
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: "image/jpeg", data: base64ImageData } }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                           type: "OBJECT",
+                           properties: {
+                                boundingBox: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        x: { type: "NUMBER" },
+                                        y: { type: "NUMBER" },
+                                        width: { type: "NUMBER" },
+                                        height: { type: "NUMBER" }
+                                    }
+                                },
+                                details: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        companyName: { type: "STRING" },
+                                        contactName: { type: "STRING" },
+                                        designation: { type: "STRING" },
+                                        phoneNumber: { type: "STRING" },
+                                        mobileNumber: { type: "STRING" },
+                                        faxNumber: { type: "STRING" },
+                                        email: { type: "STRING" },
+                                        website: { type: "STRING" },
+                                        address: { type: "STRING" },
+                                    }
+                                }
+                            },
+                        }
+                    },
+                },
+            };
+            
+            const apiKey = "AIzaSyAzTbdvEwqu0Lb7d38zngeNUMOpKoJLTHc";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            
+            let response;
+            let attempts = 0;
+            const maxAttempts = 5;
+            let delay = 1000;
 
-    while (attempts < maxAttempts) {
-        try {
-            response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            while (attempts < maxAttempts) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
 
-            if (response.ok) {
-                const result = await response.json();
-                 if (result.candidates && result.candidates.length > 0 &&
-                    result.candidates[0].content && result.candidates[0].content.parts &&
-                    result.candidates[0].content.parts.length > 0) {
-                    const jsonText = result.candidates[0].content.parts[0].text;
-                    return JSON.parse(jsonText);
-                } else {
-                   throw new Error("Invalid response structure from API");
+                    if (response.ok) {
+                        const result = await response.json();
+                         if (result.candidates && result.candidates.length > 0 &&
+                            result.candidates[0].content && result.candidates[0].content.parts &&
+                            result.candidates[0].content.parts.length > 0) {
+                            const jsonText = result.candidates[0].content.parts[0].text;
+                            return JSON.parse(jsonText);
+                        } else {
+                           throw new Error("Invalid response structure from API");
+                        }
+                    } else if (response.status === 429 || response.status >= 500) {
+                        attempts++;
+                        if (attempts >= maxAttempts) {
+                           throw new Error(`API request failed after ${maxAttempts} attempts with status: ${response.status}`);
+                        }
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2; 
+                    } else {
+                        throw new Error(`API request failed with status: ${response.status}`);
+                    }
+                } catch (error) {
+                    attempts++;
+                    if (attempts >= maxAttempts) {
+                        console.error("Error calling Gemini API after multiple retries:", error);
+                        throw error;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
                 }
-            } else if (response.status === 429 || response.status >= 500) {
-                attempts++;
-                if (attempts >= maxAttempts) {
-                   throw new Error(`API request failed after ${maxAttempts} attempts with status: ${response.status}`);
-                }
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2; 
-            } else {
-                throw new Error(`API request failed with status: ${response.status}`);
             }
-        } catch (error) {
-            attempts++;
-            if (attempts >= maxAttempts) {
-                console.error("Error calling Gemini API after multiple retries:", error);
-                throw error;
-            }
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2;
+             return null;
         }
-    }
-     return null;
-}
 
         function renderTableRow(details) {
             const row = document.createElement('tr');
