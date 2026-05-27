@@ -245,7 +245,7 @@ async function processCardImageWithGemini(base64ImageData) {
         If any text detail is not found, return an empty string for that field.
     `;
 
-    // THE FIXED PAYLOAD STRIPPED OF COMPILING TYPOS CAUSING THE 400 REJECTION
+    // STRUCTURALLY CORRECT PAYLOAD COMPLIANT WITH THE STABLE v1 ENDPOINT
     const payload = {
         contents: [{
             parts: [
@@ -256,33 +256,38 @@ async function processCardImageWithGemini(base64ImageData) {
         generationConfig: {
             responseMimeType: "application/json",
             responseSchema: {
-                type: "array",
-                description: "List of detected business cards",
-                items: {
-                    type: "object",
-                    properties: {
-                        boundingBox: {
+                type: "object",
+                properties: {
+                    schema: {
+                        type: "array",
+                        description: "List of detected business cards with details",
+                        items: {
                             type: "object",
                             properties: {
-                                x: { type: "number" },
-                                y: { type: "number" },
-                                width: { type: "number" },
-                                height: { type: "number" }
-                            },
-                            required: ["x", "y", "width", "height"]
-                        },
-                        details: {
-                            type: "object",
-                            properties: {
-                                companyName: { type: "string" },
-                                contactName: { type: "string" },
-                                designation: { type: "string" },
-                                phoneNumber: { type: "string" },
-                                mobileNumber: { type: "string" },
-                                faxNumber: { type: "string" },
-                                email: { type: "string" },
-                                website: { type: "string" },
-                                address: { type: "string" }
+                                boundingBox: {
+                                    type: "object",
+                                    properties: {
+                                        x: { type: "number" },
+                                        y: { type: "number" },
+                                        width: { type: "number" },
+                                        height: { type: "number" }
+                                    },
+                                    required: ["x", "y", "width", "height"]
+                                },
+                                details: {
+                                    type: "object",
+                                    properties: {
+                                        companyName: { type: "string" },
+                                        contactName: { type: "string" },
+                                        designation: { type: "string" },
+                                        phoneNumber: { type: "string" },
+                                        mobileNumber: { type: "string" },
+                                        faxNumber: { type: "string" },
+                                        email: { type: "string" },
+                                        website: { type: "string" },
+                                        address: { type: "string" }
+                                    }
+                                }
                             }
                         }
                     }
@@ -309,11 +314,18 @@ async function processCardImageWithGemini(base64ImageData) {
 
             if (response.ok) {
                 const result = await response.json();
-                 if (result.candidates && result.candidates.length > 0 &&
+                if (result.candidates && result.candidates.length > 0 &&
                     result.candidates[0].content && result.candidates[0].content.parts &&
                     result.candidates[0].content.parts.length > 0) {
+                    
                     const jsonText = result.candidates[0].content.parts[0].text;
-                    return JSON.parse(jsonText);
+                    const parsedResult = JSON.parse(jsonText);
+                    
+                    // Handle reading data out of the standard schema nesting wrapper
+                    if (parsedResult.schema) {
+                        return parsedResult.schema;
+                    }
+                    return parsedResult;
                 } else {
                    throw new Error("Invalid response structure from API");
                 }
